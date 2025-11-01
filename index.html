@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Lista Quotidiana</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 10px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px 15px; text-align: center; border-radius: 20px 20px 0 0; }
+        .header h1 { font-size: 22px; margin-bottom: 8px; }
+        .date { font-size: 12px; opacity: 0.9; }
+        .progress-bar { background: rgba(255,255,255,0.2); height: 6px; border-radius: 3px; margin-top: 12px; }
+        .progress-fill { background: #4CAF50; height: 100%; transition: width 0.3s; width: 0%; }
+        .content { padding: 15px; }
+        .time-section { margin-bottom: 20px; }
+        .time-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; color: white; }
+        .time-header h2 { font-size: 16px; flex: 1; }
+        .time-badge { font-size: 10px; background: rgba(255,255,255,0.25); padding: 3px 7px; border-radius: 10px; }
+        .add-task { display: flex; gap: 8px; margin-bottom: 12px; }
+        .add-task input { flex: 1; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; }
+        .add-task button { padding: 12px 16px; background: #667eea; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; min-width: 48px; }
+        .task-item { background: #f8f9fa; border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .task-item.completed { background: #e8f5e9; opacity: 0.7; }
+        .task-item input[type="checkbox"] { width: 24px; height: 24px; }
+        .task-text { flex: 1; font-size: 15px; color: #333; }
+        .task-item.completed .task-text { text-decoration: line-through; color: #999; }
+        .delete-btn { background: #ff5252; color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 20px; }
+        .empty { text-align: center; padding: 15px; color: #999; font-size: 13px; }
+        .stats { background: #f8f9fa; padding: 12px; border-radius: 10px; margin-top: 15px; text-align: center; font-size: 13px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Lista Quotidiana</h1>
+            <div class="date" id="date"></div>
+            <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+        </div>
+        <div class="content" id="content"></div>
+    </div>
+    <script>
+        const timeSlots = [
+            { id: 'morning', name: 'Mattina', icon: '🌅', time: '6:00-13:00' },
+            { id: 'afternoon', name: 'Pomeriggio', icon: '☀️', time: '13:00-20:00' },
+            { id: 'evening', name: 'Sera', icon: '🌙', time: '20:00-24:00' }
+        ];
+        let tasks = { morning: [], afternoon: [], evening: [] };
+        function save() { localStorage.setItem('dailyTasks', JSON.stringify(tasks)); localStorage.setItem('lastDate', new Date().toDateString()); }
+        function load() { 
+            const saved = localStorage.getItem('dailyTasks'); 
+            const savedDate = localStorage.getItem('lastDate'); 
+            const today = new Date().toDateString();
+            if (savedDate === today && saved) { tasks = JSON.parse(saved); } 
+            else if (saved) { const old = JSON.parse(saved); Object.keys(old).forEach(s => { tasks[s] = old[s].map(t => ({ ...t, completed: false })); }); save(); }
+        }
+        function addTask(slot) { 
+            const input = document.getElementById(`input-${slot}`); 
+            const text = input.value.trim(); 
+            if (text) { tasks[slot].push({ id: Date.now(), text: text, completed: false }); input.value = ''; save(); render(); }
+        }
+        function toggleTask(slot, id) { const task = tasks[slot].find(t => t.id === id); if (task) { task.completed = !task.completed; save(); render(); } }
+        function deleteTask(slot, id) { tasks[slot] = tasks[slot].filter(t => t.id !== id); save(); render(); }
+        function getProgress() { const all = [...tasks.morning, ...tasks.afternoon, ...tasks.evening]; return all.length === 0 ? 0 : (all.filter(t => t.completed).length / all.length) * 100; }
+        function render() {
+            document.getElementById('date').textContent = new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('progress').style.width = getProgress() + '%';
+            const content = document.getElementById('content');
+            content.innerHTML = '';
+            timeSlots.forEach(slot => {
+                const slotTasks = tasks[slot.id];
+                const completed = slotTasks.filter(t => t.completed).length;
+                const section = document.createElement('div');
+                section.className = 'time-section';
+                let html = `<div class="time-header"><span style="font-size:20px">${slot.icon}</span><h2>${slot.name}</h2><span class="time-badge">${slot.time}</span>${slotTasks.length > 0 ? `<span class="time-badge">${completed}/${slotTasks.length}</span>` : ''}</div><div class="add-task"><input type="text" id="input-${slot.id}" placeholder="Aggiungi..." onkeypress="if(event.key==='Enter'){addTask('${slot.id}');this.blur();}"><button onclick="addTask('${slot.id}')">+</button></div>`;
+                if (slotTasks.length > 0) { slotTasks.forEach(task => { html += `<div class="task-item ${task.completed ? 'completed' : ''}"><input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${slot.id}', ${task.id})"><span class="task-text">${task.text}</span><button class="delete-btn" onclick="deleteTask('${slot.id}', ${task.id})">×</button></div>`; }); } 
+                else { html += `<div class="empty">Nessuna attività</div>`; }
+                section.innerHTML = html;
+                content.appendChild(section);
+            });
+            const all = [...tasks.morning, ...tasks.afternoon, ...tasks.evening];
+            const completed = all.filter(t => t.completed).length;
+            const stats = document.createElement('div');
+            stats.className = 'stats';
+            stats.textContent = all.length === 0 ? 'Aggiungi le tue attività!' : `${completed}/${all.length} completate${completed === all.length && all.length > 0 ? ' 🎉' : ''}`;
+            content.appendChild(stats);
+        }
+        setInterval(() => { const savedDate = localStorage.getItem('lastDate'); const today = new Date().toDateString(); if (savedDate && savedDate !== today) { Object.keys(tasks).forEach(s => { tasks[s].forEach(t => t.completed = false); }); save(); render(); } }, 60000);
+        load(); render();
+    </script>
+</body>
+</html>
