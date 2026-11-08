@@ -44,26 +44,33 @@
     <script>
         const timeSlots = [
             { id: 'morning', name: 'Mattina', icon: '🌅', time: '6:00-13:00' },
+            { id: 'lunch', name: 'Pranzo', icon: '🍽️', time: '12:00-14:00' },
             { id: 'afternoon', name: 'Pomeriggio', icon: '☀️', time: '13:00-20:00' },
             { id: 'evening', name: 'Sera', icon: '🌙', time: '20:00-24:00' }
         ];
-        let tasks = { morning: [], afternoon: [], evening: [] };
+        let tasks = { morning: [], lunch: [], afternoon: [], evening: [] };
+        function allTasks() { return Object.values(tasks).flat(); }
         function save() { localStorage.setItem('dailyTasks', JSON.stringify(tasks)); localStorage.setItem('lastDate', new Date().toDateString()); }
-        function load() { 
-            const saved = localStorage.getItem('dailyTasks'); 
-            const savedDate = localStorage.getItem('lastDate'); 
+        function load() {
+            const saved = localStorage.getItem('dailyTasks');
+            const savedDate = localStorage.getItem('lastDate');
             const today = new Date().toDateString();
-            if (savedDate === today && saved) { tasks = JSON.parse(saved); } 
-            else if (saved) { const old = JSON.parse(saved); Object.keys(old).forEach(s => { tasks[s] = old[s].map(t => ({ ...t, completed: false })); }); save(); }
+            if (savedDate === today && saved) {
+                tasks = { ...tasks, ...JSON.parse(saved) };
+            } else if (saved) {
+                const old = JSON.parse(saved);
+                Object.keys(old).forEach(s => { tasks[s] = old[s].map(t => ({ ...t, completed: false })); });
+                save();
+            }
         }
-        function addTask(slot) { 
-            const input = document.getElementById(`input-${slot}`); 
-            const text = input.value.trim(); 
+        function addTask(slot) {
+            const input = document.getElementById(`input-${slot}`);
+            const text = input.value.trim();
             if (text) { tasks[slot].push({ id: Date.now(), text: text, completed: false }); input.value = ''; save(); render(); }
         }
         function toggleTask(slot, id) { const task = tasks[slot].find(t => t.id === id); if (task) { task.completed = !task.completed; save(); render(); } }
         function deleteTask(slot, id) { tasks[slot] = tasks[slot].filter(t => t.id !== id); save(); render(); }
-        function getProgress() { const all = [...tasks.morning, ...tasks.afternoon, ...tasks.evening]; return all.length === 0 ? 0 : (all.filter(t => t.completed).length / all.length) * 100; }
+        function getProgress() { const all = allTasks(); return all.length === 0 ? 0 : (all.filter(t => t.completed).length / all.length) * 100; }
         function render() {
             document.getElementById('date').textContent = new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             document.getElementById('progress').style.width = getProgress() + '%';
@@ -75,12 +82,12 @@
                 const section = document.createElement('div');
                 section.className = 'time-section';
                 let html = `<div class="time-header"><span style="font-size:20px">${slot.icon}</span><h2>${slot.name}</h2><span class="time-badge">${slot.time}</span>${slotTasks.length > 0 ? `<span class="time-badge">${completed}/${slotTasks.length}</span>` : ''}</div><div class="add-task"><input type="text" id="input-${slot.id}" placeholder="Aggiungi..." onkeypress="if(event.key==='Enter'){addTask('${slot.id}');this.blur();}"><button onclick="addTask('${slot.id}')">+</button></div>`;
-                if (slotTasks.length > 0) { slotTasks.forEach(task => { html += `<div class="task-item ${task.completed ? 'completed' : ''}"><input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${slot.id}', ${task.id})"><span class="task-text">${task.text}</span><button class="delete-btn" onclick="deleteTask('${slot.id}', ${task.id})">×</button></div>`; }); } 
+                if (slotTasks.length > 0) { slotTasks.forEach(task => { html += `<div class="task-item ${task.completed ? 'completed' : ''}"><input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${slot.id}', ${task.id})"><span class="task-text">${task.text}</span><button class="delete-btn" onclick="deleteTask('${slot.id}', ${task.id})">×</button></div>`; }); }
                 else { html += `<div class="empty">Nessuna attività</div>`; }
                 section.innerHTML = html;
                 content.appendChild(section);
             });
-            const all = [...tasks.morning, ...tasks.afternoon, ...tasks.evening];
+            const all = allTasks();
             const completed = all.filter(t => t.completed).length;
             const stats = document.createElement('div');
             stats.className = 'stats';
